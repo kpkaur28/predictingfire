@@ -12,9 +12,9 @@ from sklearn.metrics import roc_curve
 from sklearn.metrics import auc, roc_auc_score, precision_score, recall_score 
 from sklearn.metrics import classification_report 
 
-names = ['X', 'Y', 'temp', 'wind', 'rain', 'fire']
-train=pd.read_csv("forestfires.csv", names=names)
-test=pd.read_csv("testforest.csv")
+#names = ['X', 'Y', 'temp', 'wind', 'rain', 'fire']
+train=pd.read_csv("forestfires.csv", header=0)
+test=pd.read_csv("decision_tree.csv", header=0)
 #print(train)
 #print(test)
 
@@ -31,16 +31,6 @@ train_data=train.dropna(axis=0,how="any")
 test_data=test.dropna(axis=0,how="any")
 print('Train Clean Data Shape: {}'.format(train_data.shape))
 print('Test Clean Data Shape: {}'.format(test_data.shape))
-
-#Checking unique values in a dataset
-train_data["fire"].unique()
-#print(train_data["fire"].unique())
-
-train_data["temp"].unique()
-#print(train_data["temp"].unique())
-
-train_data["wind"].unique()
-#print(train_data["temp"].unique())
 
 #Finding the number of fires
 train_data["fire"].value_counts()
@@ -63,16 +53,10 @@ str_dt=test_data.select_dtypes(include=['object'])
 int_data=train_data.select_dtypes(include=['integer',"float"])
 int_dt=test_data.select_dtypes(include=['integer',"float"])
 
-#LabelEncoder
-label=LabelEncoder()
-features=str_data.apply(label.fit_transform)
-features=features.join(int_data)
-#print(features)
-
 #Defining features and label
-xtrain=features.drop(["fire"],axis=1)
+xtrain=train_data[["temp", "wind"]]     #using only temperature and wind
 #print(xtrain)
-ytrain=features["fire"]
+ytrain=train_data["fire"]
 #print(ytrain)
 
 from sklearn.model_selection import train_test_split
@@ -87,25 +71,16 @@ model.fit(x_train,y_train)
 
 predict=model.predict(x_test)
 
-#Xnew = [[1,1,29,4.5,2]]
-#ynew=model.predict(Xnew)0
-#print("X=%s, Predicted=%s" % (Xnew[0],ynew[0]))
-
-##Open the test data excel and then input the prediction values as a separate column
-with open(r'testforest.csv', 'r', newline='') as f:
-    rows = csv.reader(f, delimiter=',')
-    _ = next(rows)
-    predictions = []
-    for row in rows:
-        line = list(map(float,row))
-        pred1 = model.predict([line])
-        predictions.append(pred1)
-        
-    df = pd.read_csv("testforest.csv")
-    predictions = list(map(int, predictions))
-    df['pred_naive_bayes'] = predictions
-    print(df)
-    df.to_csv('testforest.csv')
+df = pd.read_csv("naive_bayes.csv", header=0)
+predictions = []
+for index, row in df.iterrows():
+    pred1 = model.predict([row[["temp", "wind"]]])
+    #print("pred1 is:", pred1)
+    predictions.append(pred1)
+predictions = list(map(int, predictions))
+df['pred_naive_bayes'] = predictions
+print(df)
+df.to_csv('naive_bayes_output.csv')
 
 print("\n")
 
@@ -136,6 +111,18 @@ dt_mod.fit(x_train,y_train)
 
 y_pred=dt_mod.predict(x_test)
 
+##Open the test data excel and then input the prediction values as a separate column
+df = pd.read_csv("decision_tree.csv", header=0)
+predictions = []
+for index, row in df.iterrows():
+    pred1 = dt_mod.predict([row[["temp", "wind"]]])
+    #print("pred1 is:", pred1)
+    predictions.append(pred1)
+predictions = list(map(int, predictions))
+df['pred_decision_tree'] = predictions
+print(df)
+df.to_csv('decision_tree_output.csv')
+
 print("\n")
 
 ts_dt_score=dt_mod.score(x_test,y_test)
@@ -148,16 +135,28 @@ print("DTrain_score:",ts_dt_score)
 dt_report=classification_report(y_test,y_pred)
 #print(dt_report)
 
-
 #--------------------Building Neural Network
 print("\n--------------Building Neural Network\n")
 
-mlp_model=MLPClassifier()
+mlp_model=MLPClassifier(max_iter=1000)
 mlp_model.fit(x_train,y_train)
 #print(mlp_model.fit(x_train,y_train))
 
 mlp_predict=mlp_model.predict(x_test)
 #print(mlp_predict)
+
+df = pd.read_csv("neural_network.csv", header=0)
+predictions = []
+for index, row in df.iterrows():
+    pred1 = mlp_model.predict([row[["temp", "wind"]]])
+    #print("pred1 is:", pred1)
+    predictions.append(pred1)
+predictions = list(map(int, predictions))
+df['pred_neural_network'] = predictions
+print(df)
+df.to_csv('neural_network_output.csv')
+
+print("\n")
 
 ts_mlp_score=mlp_model.score(x_test,y_test)
 print("NNtest_score: ", ts_mlp_score)
@@ -165,7 +164,7 @@ print("NNtest_score: ", ts_mlp_score)
 tr_mlp_score=mlp_model.score(x_train,y_train)
 print("NNtrain_score: ", tr_mlp_score)
 
-nn_cv_results=cross_validate(mlp_model,xtrain,ytrain,cv=5)
+nn_cv_results=cross_validate(mlp_model,xtrain,ytrain)
 #print(nn_cv_results)
 
 """
